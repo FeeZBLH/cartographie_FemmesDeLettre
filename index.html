@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartographie - Femmes de lettres francophones</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+   integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+   crossorigin=""/>
+   <!-- Make sure you put this AFTER Leaflet's CSS -->
+ <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+ integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
+ crossorigin=""></script>
+    <style>
+        #map { height:80vh; }
+        .h1{height: 20vh;padding: 0;margin: 0;}
+    </style>
+</head>
+<body>
+    <h1>Cartographie: Femmes de lettres francophones mortes avant 1951</h1>
+
+    <div id="map" ></div>
+
+    <script>
+
+class SPARQLQueryDispatcher {
+	constructor( endpoint ) {
+		this.endpoint = endpoint;
+	}
+
+	query( sparqlQuery ) {
+		const fullUrl = this.endpoint + '?query=' + encodeURIComponent( sparqlQuery );
+		const headers = { 'Accept': 'application/sparql-results+json' };
+
+		return fetch( fullUrl, { headers } ).then( body => body.json() );
+	}
+}
+
+const endpointUrl = 'https://query.wikidata.org/sparql';
+const sparqlQuery = `#Femmes de lettres francophones mortes avant 1951, classées en fonction du nombre de liens de sites de leur élément avec leur pays de nationalité et lieu de naissance
+#defaultView:ImageGrid
+SELECT DISTINCT ?autrice ?autriceLabel ?coordNaissance (MIN(?photo) AS ?laphoto) (MIN(?dateNaissance) AS ?naissance) (YEAR(?naissance) AS ?anneeNaissance) (MIN(?dateMort) AS ?mort) (YEAR(?mort) AS ?anneeMort) ?linkcount ?lieuNaissance WHERE {
+  ?autrice wdt:P106 wd:Q36180;
+    wdt:P1412 wd:Q150;
+    wdt:P21 wd:Q6581072;
+    wdt:P19 ?lieuNaissance;
+    wikibase:sitelinks ?linkcount;
+    wdt:P18 ?photo;
+    wdt:P569 ?dateNaissance;
+    wdt:P570 ?dateMort.
+  ?lieuNaissance wdt:P625 ?coordNaissance.
+  FILTER(?dateMort < "1951-01-01T00:00:00Z"^^xsd:dateTime)
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en" }
+}
+GROUP BY ?autrice ?autriceLabel ?coordNaissance ?laphoto ?mort ?linkcount  ?lieuNaissance
+ORDER BY DESC (?linkcount)`;
+
+const queryDispatcher = new SPARQLQueryDispatcher( endpointUrl );
+queryDispatcher.query( sparqlQuery ).then( function(data){
+    console.log(data);
+    let tempCoordS = data.results.bindings[184].coordNaissance.value;
+    tempCoordS = tempCoordS.replace('Point(','');
+    tempCoordS = tempCoordS.replace(')','');
+    let splitCoordS = tempCoordS.split(" ");
+    let longS = splitCoordS[0];
+    let latS = splitCoordS[1];
+    var map = L.map('map').setView([latS, longS], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+    data.results.bindings.forEach(function(element){ 
+    let tempCoord = element.coordNaissance.value;
+    tempCoord = tempCoord.replace('Point(','');
+    tempCoord = tempCoord.replace(')','');
+    let splitCoord = tempCoord.split(" ");
+    let long = splitCoord[0];
+    let lat = splitCoord[1];
+   console.log(lat + long);
+
+//    // s = element.anneeNaissance;
+//                     // siecle = parseInt(s.substring(0,(s.length - 2))) + 1 ;
+//                     // icone = "Icon"+siecle;
+//                     var bb = L.icon({
+//     iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+    
+
+//     iconSize:     [38, 95], // size of the icon
+//     shadowSize:   [50, 64], // size of the shadow
+//     iconAnchor:   [22, 94], // point of the icon which will correspond to marker's location
+//     shadowAnchor: [4, 62],  // the same for the shadow
+//     popupAnchor:  [-3, -76] });
+                   
+                    
+        
+                    L.marker([lat, long]).addTo(map)
+                    
+                    
+                    .bindPopup(` <img style="width:5vw" src="${element.laphoto.value}"> Lieu de naissance de ${element.autriceLabel.value}`)
+                    .openPopup(); 
+
+});
+
+});
+
+
+
+               
+
+        
+
+                
+
+    </script>
+
+
+<h2>À Propos</h2>
+<p>Les données cartographiés proviennent de <a href="https://w.wiki/4WWE">wikidata</a> </p>
+    
+</body>
+</html>
